@@ -1,0 +1,4 @@
+*.tmp
+.vercel
+.DS_Store
+Thumbs.db

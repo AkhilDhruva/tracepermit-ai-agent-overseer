@@ -1,0 +1,6 @@
+# Byte-exact checkout. The published SHA-256 digests and the OpenTimestamps
+# proofs commit to these exact bytes; any line-ending translation on checkout
+# would break verification for everyone who clones.
+* -text
+
+*.ots binary
