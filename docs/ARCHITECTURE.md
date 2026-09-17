@@ -157,11 +157,22 @@ one that lies about what it admitted — defeats the check. Attack success rises
 from 0.6% to 17.2% in exactly that arm, and it is reported as a conditional
 invariant rather than folded into the headline.
 
-A cross-language canonicalization divergence at 2⁵³ was also found by the
-project's own adversarial harness, disclosed, and repaired in a versioned
-successor artifact rather than patched in place — the successor is a separate,
-separately-verified artifact, so results attributed to the original are not
-silently reattributed to the fix.
+**A canonicalization defect was found, disclosed, and repaired in a versioned
+successor** rather than patched in place. At 2⁵³ the Python and TypeScript
+canonicalizers disagreed about which integers were admissible, and
+identity is computed over canonical bytes, so a disagreement there is a
+disagreement about identity itself. **6 of 15** boundary vectors diverged in
+v0.9.0; the v0.9.1 successor meets required verdicts on **15/15**. The successor
+is a separate, separately-verified artifact, so results attributed to the
+original are not silently reattributed to the fix.
+
+An earlier version of this page reported that repair as "19/19 cross-language
+identity vectors". That was a fixture-framed count from a harness later
+superseded, and the research record retired it; the figures above are the
+authoritative ones. The correction is release **v1.1.0**, and the superseded
+page remains attested and reachable at tag `v1.0.0` — see
+[`../PROVENANCE.md`](../PROVENANCE.md). A claim you cannot correct without
+leaving a trace is worse than one you can.
 
 ## 6. Verifying this release
 
