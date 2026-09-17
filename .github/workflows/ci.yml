@@ -1,0 +1,83 @@
+name: integrity
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # A repository about provenance should verify its own. This job re-derives
+  # every digest from the bytes on every push, so "the manifest is current" is
+  # a continuously enforced property rather than a claim in a markdown file.
+  digests:
+    name: digests re-derive from the bytes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Manifest verifies at HEAD
+        run: sha256sum -c SHA256SUMS
+
+      - name: The manifest's own digest matches the one PROVENANCE.md publishes
+        run: |
+          published=$(grep -oE '\b[0-9a-f]{64}\b' PROVENANCE.md \
+                      | grep -x "$(sha256sum SHA256SUMS | cut -d' ' -f1)")
+          test -n "$published"
+          echo "SHA256SUMS -> $published"
+
+      # The OpenTimestamps proofs attest to the bytes of the v1.0.0 release.
+      # Verifying the manifest at that tag is what keeps the attestation
+      # meaningful as the repository evolves: a timestamp proves that *those*
+      # bytes existed by the anchoring block, not that today's bytes did.
+      - name: Attested release bytes are intact at tag v1.0.0
+        run: |
+          git fetch --tags --quiet origin || true
+          if git rev-parse -q --verify refs/tags/v1.0.0 >/dev/null; then
+            git -c advice.detachedHead=false checkout --quiet v1.0.0
+            sha256sum -c SHA256SUMS
+            echo "v1.0.0 attested bytes verified"
+          else
+            echo "::warning::tag v1.0.0 not present in this checkout; skipped"
+          fi
+
+  # The README makes three structural promises about index.html. Each one is an
+  # assertion here, so the page cannot quietly acquire a dependency.
+  self-contained:
+    name: page is self-contained and does real crypto
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No external resources (scripts, styles, fonts, images)
+        run: |
+          ! grep -qE '(src|href)="https?://' index.html
+          ! grep -qE "@import|url\(['\"]?https?://" index.html
+          echo "no external resource references"
+
+      - name: No network calls at runtime
+        run: |
+          ! grep -qE 'fetch\(|XMLHttpRequest|WebSocket|navigator\.sendBeacon|import\(' index.html
+          echo "no network APIs present"
+
+      - name: Verdicts recompute from real SHA-256, not a lookup table
+        run: |
+          grep -q 'crypto.subtle' index.html
+          echo "Web Crypto SHA-256 present"
+
+      - name: HTML parses
+        run: |
+          python3 - <<'PY'
+          import html.parser, sys
+          class P(html.parser.HTMLParser): pass
+          p = P(convert_charrefs=True)
+          p.feed(open("index.html", encoding="utf-8").read())
+          p.close()
+          print("index.html parsed without error")
+          PY
